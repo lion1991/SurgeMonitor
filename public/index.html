@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Surge Control Desk</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23161812'/%3E%3Cpath d='M12 39h40v8H12z' fill='%23008f86'/%3E%3Cpath d='M12 17h40v8H12z' fill='%23cf2d35'/%3E%3Cpath d='M20 28h24v8H20z' fill='%23f2c84b'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-labelledby="page-title">
+        <div class="brand">
+          <img
+            class="brand-image"
+            alt=""
+            src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=320&q=80"
+          />
+          <div>
+            <p class="eyebrow">LOCAL SURGE API</p>
+            <h1 id="page-title">Surge Control Desk</h1>
+          </div>
+        </div>
+        <div class="status-strip" id="connectionStatus" aria-live="polite">
+          <span class="dot dot-warn"></span>
+          未连接
+        </div>
+      </section>
+
+      <section class="connection-panel" aria-labelledby="connection-title">
+        <div>
+          <p class="eyebrow">CONNECTION</p>
+          <h2 id="connection-title">连接到 Surge HTTP API</h2>
+          <p class="hint">
+            在 Surge 配置里启用 <code>http-api = key@0.0.0.0:6171</code> 后，在这里填地址和 key。
+          </p>
+        </div>
+        <form id="connectionForm" class="connection-form">
+          <label>
+            <span>API 地址</span>
+            <input id="baseUrl" name="baseUrl" autocomplete="url" value="http://127.0.0.1:6171" />
+          </label>
+          <label>
+            <span>API Key</span>
+            <input id="apiKey" name="apiKey" type="password" autocomplete="current-password" placeholder="examplekey" />
+          </label>
+          <label class="check-row">
+            <input id="rememberKey" type="checkbox" />
+            <span>在浏览器保存 key</span>
+          </label>
+          <div class="button-row">
+            <button type="submit" class="primary">连接并刷新</button>
+            <button type="button" id="refreshAll">刷新全部</button>
+            <button type="button" id="clearSettings">清除</button>
+          </div>
+        </form>
+      </section>
+
+      <nav class="view-nav" aria-label="主要页面">
+        <button type="button" class="active" data-view-target="dashboard">总览</button>
+        <button type="button" data-view-target="requests">连接请求</button>
+        <button type="button" data-view-target="devices">来源设备</button>
+      </nav>
+
+      <div class="view is-active" data-view="dashboard">
+        <section class="overview-grid">
+          <article class="metric-panel">
+            <span>出站模式</span>
+            <strong id="modeMetric">-</strong>
+          </article>
+          <article class="metric-panel">
+            <span>可用策略</span>
+            <strong id="policyMetric">-</strong>
+          </article>
+          <article class="metric-panel">
+            <span>活动请求</span>
+            <strong id="activeMetric">-</strong>
+          </article>
+          <article class="metric-panel">
+            <span>模块启用</span>
+            <strong id="moduleMetric">-</strong>
+          </article>
+        </section>
+
+        <section class="grid two">
+          <article class="panel" aria-labelledby="features-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">FEATURES</p>
+                <h2 id="features-title">功能开关</h2>
+              </div>
+              <button type="button" data-refresh="features">刷新</button>
+            </div>
+            <div id="featuresList" class="switch-list"></div>
+          </article>
+
+          <article class="panel" aria-labelledby="outbound-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">OUTBOUND</p>
+                <h2 id="outbound-title">出站控制</h2>
+              </div>
+              <button type="button" data-refresh="outbound">刷新</button>
+            </div>
+            <div class="segmented" id="outboundModes">
+              <button type="button" data-mode="direct">Direct</button>
+              <button type="button" data-mode="proxy">Proxy</button>
+              <button type="button" data-mode="rule">Rule</button>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>Global 默认策略</span>
+                <input id="globalPolicyInput" placeholder="ProxyA" />
+              </label>
+              <button type="button" id="setGlobalPolicy">应用</button>
+            </div>
+            <pre id="outboundRaw" class="raw compact"></pre>
+          </article>
+        </section>
+
+        <section class="grid two">
+          <article class="panel wide" aria-labelledby="groups-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">POLICY GROUPS</p>
+                <h2 id="groups-title">策略组选择</h2>
+              </div>
+              <button type="button" data-refresh="groups">刷新</button>
+            </div>
+            <div id="policyGroups" class="group-list"></div>
+          </article>
+
+          <article class="panel" aria-labelledby="modules-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">MODULES</p>
+                <h2 id="modules-title">模块</h2>
+              </div>
+              <button type="button" data-refresh="modules">刷新</button>
+            </div>
+            <div id="modulesList" class="switch-list"></div>
+          </article>
+        </section>
+
+        <section class="grid two">
+          <article class="panel" aria-labelledby="policies-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">POLICIES</p>
+                <h2 id="policies-title">策略测试</h2>
+              </div>
+              <button type="button" data-refresh="policies">刷新</button>
+            </div>
+            <label class="full-field">
+              <span>测试 URL</span>
+              <input id="testUrl" value="http://bing.com" />
+            </label>
+            <div class="button-row">
+              <button type="button" id="testSelectedPolicies">测试选中策略</button>
+            </div>
+            <div id="policiesList" class="pill-list"></div>
+            <pre id="policyTestResult" class="raw compact"></pre>
+          </article>
+
+          <article class="panel" aria-labelledby="traffic-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">TRAFFIC</p>
+                <h2 id="traffic-title">实时流量</h2>
+              </div>
+              <label class="check-row small">
+                <input id="autoPollTraffic" type="checkbox" checked />
+                <span>自动刷新</span>
+              </label>
+            </div>
+            <div id="trafficSummary" class="traffic-summary"></div>
+            <pre id="trafficRaw" class="raw compact"></pre>
+          </article>
+        </section>
+
+        <section class="grid two">
+          <article class="panel" aria-labelledby="tools-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ACTIONS</p>
+                <h2 id="tools-title">维护操作</h2>
+              </div>
+            </div>
+            <div class="button-grid">
+              <button type="button" id="reloadProfile">重载配置</button>
+              <button type="button" id="flushDns">清空 DNS 缓存</button>
+              <button type="button" id="loadProfile">查看当前配置</button>
+              <button type="button" id="loadDns">查看 DNS 缓存</button>
+              <button type="button" id="loadRules">查看规则</button>
+              <button type="button" id="loadEvents">查看事件</button>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>日志等级</span>
+                <select id="logLevel">
+                  <option value="info">info</option>
+                  <option value="warning">warning</option>
+                  <option value="error">error</option>
+                  <option value="verbose">verbose</option>
+                </select>
+              </label>
+              <button type="button" id="setLogLevel">设置</button>
+            </div>
+            <button type="button" id="stopEngine" class="danger">停止 Surge Engine</button>
+          </article>
+
+          <article class="panel" aria-labelledby="viewer-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">VIEWER</p>
+                <h2 id="viewer-title">数据查看</h2>
+              </div>
+              <button type="button" id="clearViewer">清空</button>
+            </div>
+            <pre id="viewer" class="raw tall">等待连接。</pre>
+          </article>
+        </section>
+      </div>
+
+      <section class="panel large-panel view" data-view="requests" aria-labelledby="requests-title">
+        <div class="panel-head page-head">
+          <div>
+            <p class="eyebrow">REQUESTS</p>
+            <h2 id="requests-title">连接请求</h2>
+            <p class="hint">查看活动连接和最近请求。活动连接可以按 ID 终止。</p>
+          </div>
+          <button type="button" data-refresh="requests">刷新</button>
+        </div>
+        <div class="tab-row page-tabs">
+          <button type="button" class="tab active" data-request-tab="active">活动</button>
+          <button type="button" class="tab" data-request-tab="recent">最近</button>
+        </div>
+        <div id="requestsList" class="table-wrap page-table"></div>
+      </section>
+
+      <section class="panel large-panel device-panel view" data-view="devices" aria-labelledby="devices-title">
+        <div class="panel-head page-head">
+          <div>
+            <p class="eyebrow">SOURCE DEVICES</p>
+            <h2 id="devices-title">来源设备统计</h2>
+            <p class="hint">按来源设备和地址汇总当前速率、连接数和时间窗口流量。</p>
+          </div>
+          <div class="device-actions">
+            <label>
+              <span>自然月</span>
+              <input id="deviceMonth" name="deviceMonth" type="month" />
+            </label>
+            <button type="button" data-refresh="devices">刷新</button>
+          </div>
+        </div>
+        <div id="devicesList" class="table-wrap page-table"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/requestFormatter.js"></script>
+    <script src="/policyFormatter.js"></script>
+    <script src="/deviceFormatter.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "surge-control-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local web dashboard for controlling and viewing Surge through the HTTP API.",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
