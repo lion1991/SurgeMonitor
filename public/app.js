@@ -536,10 +536,49 @@ async function refreshDevices() {
 
 function renderDevices(rows) {
   const host = $("#devicesList");
+  const summaryBox = $("#devicesSummary");
   if (!rows.length) {
     host.innerHTML = `<div class="empty">没有来源设备统计。Surge Mac 的 /v1/devices 才会返回这类数据。</div>`;
+    summaryBox.style.display = "none";
     return;
   }
+
+  let totalIn = 0; let totalOut = 0;
+  let currentIn = 0; let currentOut = 0;
+  let monthIn = 0; let monthOut = 0;
+
+  rows.forEach(row => {
+    totalIn += Number(row.raw?.inBytes) || 0;
+    totalOut += Number(row.raw?.outBytes) || 0;
+    currentIn += Number(row.raw?.currentInSpeed) || 0;
+    currentOut += Number(row.raw?.currentOutSpeed) || 0;
+    if (row.monthRaw) {
+      monthIn += Number(row.monthRaw.inBytes) || 0;
+      monthOut += Number(row.monthRaw.outBytes) || 0;
+    }
+  });
+
+  const formatter = window.SurgeDeviceFormatter;
+  const totalCurrentValue = `↓ ${formatter.formatBytes(currentIn)}/s  ↑ ${formatter.formatBytes(currentOut)}/s`;
+  const totalValue = `↓ ${formatter.formatBytes(totalIn)}  ↑ ${formatter.formatBytes(totalOut)}`;
+  const totalMonthValue = `↓ ${formatter.formatBytes(monthIn)}  ↑ ${formatter.formatBytes(monthOut)}`;
+
+  summaryBox.style.display = "grid";
+  summaryBox.innerHTML = `
+    <div class="traffic-box">
+      <span>总计实时速率</span>
+      <div style="margin-top: 5px;">${formatTrafficHtml(totalCurrentValue)}</div>
+    </div>
+    <div class="traffic-box">
+      <span>所有设备总流量</span>
+      <div style="margin-top: 5px;">${formatTrafficHtml(totalValue)}</div>
+    </div>
+    <div class="traffic-box">
+      <span>自然月总流量</span>
+      <div style="margin-top: 5px;">${formatTrafficHtml(totalMonthValue)}</div>
+    </div>
+  `;
+
 
   const monthLabel = ($("#deviceMonth").value || currentMonth()).replace("-", ".");
   const windowHeaders = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("");
@@ -547,7 +586,7 @@ function renderDevices(rows) {
     .slice()
     .sort((a, b) => bytesFromDisplay(b.total) - bytesFromDisplay(a.total))
     .map((row) => {
-      const windows = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([key]) => `<td>${escapeHtml(row.windows[key])}</td>`).join("");
+      const windows = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([key]) => `<td>${formatTrafficHtml(row.windows[key])}</td>`).join("");
       return `
         <tr>
           <td>
@@ -556,10 +595,10 @@ function renderDevices(rows) {
           </td>
           <td>${escapeHtml(row.address)}</td>
           <td>${escapeHtml(row.connections)}</td>
-          <td>${escapeHtml(row.current)}</td>
-          <td>${escapeHtml(row.total)}</td>
+          <td>${formatTrafficHtml(row.current)}</td>
+          <td>${formatTrafficHtml(row.total)}</td>
           <td>
-            <strong>${escapeHtml(row.month)}</strong>
+            <strong>${formatTrafficHtml(row.month)}</strong>
             <span class="cell-detail">${row.monthDays ? `${escapeHtml(row.monthDays)} 天记录` : "没有历史记录"}</span>
           </td>
           ${windows}
@@ -746,6 +785,7 @@ function renderEmptyStates() {
   $("#policiesList").innerHTML = `<div class="empty">连接后显示策略。</div>`;
   $("#requestsList").innerHTML = `<div class="empty">连接后显示请求。</div>`;
   $("#devicesList").innerHTML = `<div class="empty">连接后显示按来源设备/地址汇总的流量统计。</div>`;
+  $("#devicesSummary").style.display = "none";
   $("#trafficSummary").innerHTML = `
     <div class="traffic-box"><span>上传</span><strong>-</strong></div>
     <div class="traffic-box"><span>下载</span><strong>-</strong></div>
@@ -828,4 +868,18 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function formatTrafficHtml(text) {
+  if (!text || typeof text !== "string") return escapeHtml(text || "");
+  const parts = text.split("  ↑ ");
+  if (parts.length === 2) {
+    const downText = parts[0].trim().replace(/^↓\s*/, "");
+    const upText = parts[1].trim();
+    return `<div class="traffic-pair">
+      <div class="traffic-down"><span>↓</span> ${escapeHtml(downText)}</div>
+      <div class="traffic-up"><span>↑</span> ${escapeHtml(upText)}</div>
+    </div>`;
+  }
+  return escapeHtml(text);
 }

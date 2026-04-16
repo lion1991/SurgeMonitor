@@ -50,6 +50,7 @@
         ...row,
         month: pair(monthly.inBytes, monthly.outBytes, "-"),
         monthDays: Number(monthly.daysSeen || 0),
+        monthRaw: monthly,
       };
     });
   }
