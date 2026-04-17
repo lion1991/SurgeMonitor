@@ -21,6 +21,7 @@ const state = {
   requestsTab: "active",
   trafficTimer: null,
   currentView: "dashboard",
+  deviceSort: { key: "total", order: "desc" },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -96,6 +97,21 @@ function bindEvents() {
   });
 
   window.addEventListener("hashchange", () => setView(viewFromHash(), { replaceHash: false }));
+
+  $("#devicesList").addEventListener("click", (event) => {
+    const th = event.target.closest("th[data-sort]");
+    if (!th) return;
+    const key = th.dataset.sort;
+    if (state.deviceSort.key === key) {
+      state.deviceSort.order = state.deviceSort.order === "desc" ? "asc" : "desc";
+    } else {
+      state.deviceSort.key = key;
+      state.deviceSort.order = "desc";
+    }
+    if (state.deviceRows) {
+      renderDevices(state.deviceRows);
+    }
+  });
 }
 
 function viewFromHash() {
@@ -531,6 +547,7 @@ async function refreshDevices() {
     window.SurgeDeviceFormatter.extractDevices(data).map(window.SurgeDeviceFormatter.formatDeviceRow),
     monthly.devices || []
   );
+  state.deviceRows = rows;
   renderDevices(rows);
 }
 
@@ -581,10 +598,38 @@ function renderDevices(rows) {
 
 
   const monthLabel = ($("#deviceMonth").value || currentMonth()).replace("-", ".");
-  const windowHeaders = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join("");
-  const body = rows
-    .slice()
-    .sort((a, b) => bytesFromDisplay(b.total) - bytesFromDisplay(a.total))
+  
+  function th(key, label) {
+    const isSorted = state.deviceSort.key === key;
+    const arrow = isSorted ? (state.deviceSort.order === "desc" ? " ▾" : " ▴") : "";
+    return `<th class="sortable" data-sort="${escapeAttr(key)}" style="cursor: pointer; user-select: none;">${escapeHtml(label)}<span style="color: var(--teal);">${arrow}</span></th>`;
+  }
+
+  const windowHeaders = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([key, label]) => th(`window_${key}`, label)).join("");
+  
+  const sorted = rows.slice().sort((a, b) => {
+    let va, vb;
+    const key = state.deviceSort.key;
+    if (key === "name") { va = String(a.name || ""); vb = String(b.name || ""); }
+    else if (key === "address") { va = String(a.address || ""); vb = String(b.address || ""); }
+    else if (key === "connections") { va = a.raw?.activeConnections || 0; vb = b.raw?.activeConnections || 0; }
+    else if (key === "current") { va = (a.raw?.currentInSpeed || 0) + (a.raw?.currentOutSpeed || 0); vb = (b.raw?.currentInSpeed || 0) + (b.raw?.currentOutSpeed || 0); }
+    else if (key === "total") { va = (a.raw?.inBytes || 0) + (a.raw?.outBytes || 0); vb = (b.raw?.inBytes || 0) + (b.raw?.outBytes || 0); }
+    else if (key === "month") { va = (a.monthRaw?.inBytes || 0) + (a.monthRaw?.outBytes || 0); vb = (b.monthRaw?.inBytes || 0) + (b.monthRaw?.outBytes || 0); }
+    else if (key.startsWith("window_")) {
+      const wKey = key.replace("window_", "");
+      va = (a.raw?.inBytesStat?.[wKey] || 0) + (a.raw?.outBytesStat?.[wKey] || 0);
+      vb = (b.raw?.inBytesStat?.[wKey] || 0) + (b.raw?.outBytesStat?.[wKey] || 0);
+    }
+    else if (key === "topHost") { va = String(a.topHost || ""); vb = String(b.topHost || ""); }
+
+    if (typeof va === "string" && typeof vb === "string") {
+      return state.deviceSort.order === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    return state.deviceSort.order === "asc" ? va - vb : vb - va;
+  });
+
+  const body = sorted
     .map((row) => {
       const windows = window.SurgeDeviceFormatter.WINDOW_KEYS.map(([key]) => `<td>${formatTrafficHtml(row.windows[key])}</td>`).join("");
       return `
@@ -612,14 +657,14 @@ function renderDevices(rows) {
     <table class="device-table">
       <thead>
         <tr>
-          <th>设备</th>
-          <th>地址</th>
-          <th>连接</th>
-          <th>当前</th>
-          <th>总计</th>
-          <th>${escapeHtml(monthLabel)} 自然月</th>
+          ${th("name", "设备")}
+          ${th("address", "地址")}
+          ${th("connections", "连接")}
+          ${th("current", "当前")}
+          ${th("total", "总计")}
+          ${th("month", `${monthLabel} 自然月`)}
           ${windowHeaders}
-          <th>最高流量 Host</th>
+          ${th("topHost", "最高流量 Host")}
         </tr>
       </thead>
       <tbody>${body}</tbody>
