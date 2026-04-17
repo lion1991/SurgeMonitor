@@ -10,7 +10,7 @@ services:
     ports:
       - "8787:8787"
     volumes:
-      - /volume1/docker/surge-dashboard/data:/data
+      - /volume3/Files/Docker/surge-dashboard/data:/data
     environment:
       - HOST=0.0.0.0
       - PORT=8787
