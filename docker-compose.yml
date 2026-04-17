@@ -1,0 +1,17 @@
+version: "3.9"
+
+# ghcr.io 镜像名称与 GitHub 仓库路径一致，注意全小写
+
+services:
+  surge-dashboard:
+    image: ghcr.io/lion1991/surgemonitor:latest
+    container_name: surge-dashboard
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - /volume1/docker/surge-dashboard/data:/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8787
+      - SURGE_DASHBOARD_DB=/data/surge-dashboard.sqlite
